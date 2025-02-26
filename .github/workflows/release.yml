@@ -46,6 +46,7 @@ jobs:
       - name: ZIP plugin
         run: |
           pb_tool zip
+          mv speckle-qgis-v3.zip ${{env.ZipName}}
 
       - id: set-version
         name: Set version to output
