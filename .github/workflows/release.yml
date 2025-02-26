@@ -4,11 +4,12 @@ on:
     branches: ["main", "dev", "release/*", "alan/*"] # Continuous delivery on every long-lived branch
     tags: ["v3.*"] # Manual delivery on every 3.x tag
 
+env:
+  ZipName: "qgis.zip"
+
 jobs:
   build-connector:
     runs-on: ubuntu-latest
-    env:
-      ZipName: "qgis.zip"
     outputs:
       version: ${{ steps.set-version.outputs.version }}
     steps:
@@ -46,7 +47,7 @@ jobs:
       - name: ZIP plugin
         run: |
           pb_tool zip
-          mv speckle-qgis-v3.zip ${{env.ZipName}}
+          mv "zip_build/speckle-qgis-v3.zip" ${{env.ZipName}}
 
       - id: set-version
         name: Set version to output
@@ -60,7 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: output-${{ env.GitVersion_FullSemVer }}
-          path: zip_build/qgis.zip
+          path: ${{env.ZipName}}
           if-no-files-found: error
           retention-days: 1
           compression-level: 0 # no compression
