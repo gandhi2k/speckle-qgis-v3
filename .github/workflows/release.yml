@@ -7,6 +7,8 @@ on:
 jobs:
   build-connector:
     runs-on: ubuntu-latest
+    env:
+      ZipName: "qgis.zip"
     outputs:
       version: ${{ steps.set-version.outputs.version }}
     steps:
@@ -47,7 +49,8 @@ jobs:
           pip install pb_tool==3.1.0 pyqt5==5.15.9
 
       - name: ZIP plugin
-        run: pb_tool zip
+        run: |
+          pb_tool zip
 
       - id: set-version
         name: Set version to output
@@ -61,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: output-${{ env.GitVersion_FullSemVer }}
-          path: zip_build/speckle-qgis-v3.zip
+          path: zip_build/qgis.zip
           if-no-files-found: error
           retention-days: 1
           compression-level: 0 # no compression
