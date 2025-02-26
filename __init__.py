@@ -27,7 +27,7 @@ try:
 
         # Ensure dependencies are installed in the machine
         startDebugger()
-        ensure_dependencies("QGIS")
+        ensure_dependencies("QGISv3")
 
         from speckle_qgis_v3 import SpeckleQGIS
         from specklepy.logging import metrics
