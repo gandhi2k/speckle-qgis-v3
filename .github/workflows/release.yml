@@ -17,11 +17,6 @@ jobs:
         with:
           fetch-depth: 0 # fetch the whole repo history
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.x.x
-
       - name: ⚒️ Run GitVersion
         run: ./build.sh build-server-version
 
