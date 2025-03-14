@@ -3,9 +3,8 @@ from typing import List
 from speckle.host_apps.qgis.connectors.extensions import get_speckle_app_id
 from speckle.host_apps.qgis.converters.settings import QgisConversionSettings
 
-from specklepy.objects.geometry.point import Point
-from specklepy.objects.geometry.polyline import Polyline
-from specklepy.objects.geometry.mesh import Mesh
+from speckle.host_apps.qgis.converters.to_speckle.mesher import generate_region_mesh
+from specklepy.objects.geometry import Mesh, Point, Polyline, Region
 
 from qgis.core import (
     QgsAbstractGeometry,
@@ -124,7 +123,7 @@ class PolygonToSpeckleConverter:
         self._conversion_settings = conversion_settings
         self._polyline_converter = polyline_converter
 
-    def convert(self, target: QgsAbstractGeometry) -> List[Polyline]:
+    def convert(self, target: QgsAbstractGeometry) -> List[Region]:
 
         wkb_type = target.wkbType()
 
@@ -142,18 +141,28 @@ class PolygonToSpeckleConverter:
             or wkb_type == QgsWkbTypes.CurvePolygonM
             or wkb_type == QgsWkbTypes.CurvePolygonZM
         ):
-            all_curves = []
+            all_regions = []
             for part in target.parts():
 
-                all_curves.append(
-                    self._polyline_converter.convert(part.exteriorRing())[0]
-                )
+                boundary = self._polyline_converter.convert(part.exteriorRing())[0]
+                inner_loops = []
 
                 for i in range(part.numInteriorRings()):
-                    all_curves.append(
+                    inner_loops.append(
                         self._polyline_converter.convert(part.interiorRing(i))[0]
                     )
-            return all_curves
+
+                all_regions.append(
+                    Region(
+                        boundary=boundary,
+                        innerLoops=inner_loops,
+                        hasHatchPattern=False,
+                        displayValue=[],
+                        units=self._conversion_settings.speckle_units,
+                    )
+                )
+
+            return all_regions
 
         raise ValueError(f"Geometry of type '{type(target)}' cannot be converted")
 
