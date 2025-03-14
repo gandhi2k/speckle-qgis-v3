@@ -35,6 +35,7 @@ def _flat_coords_to_tuples(polyline: Polyline):
 
     max_points = 1000
     coef = math.ceil(len(polyline.value) / (3 * max_points))
+    print(coef)
 
     # Get a list of coordinate tuples for polyline points
     points_count = int(len(polyline.value) / 3)
@@ -86,7 +87,7 @@ def _construct_mesh_from_triangles(all_coords, triangles, units) -> Mesh:
         vertices.extend(
             all_coords[3 * trg[0] : 3 * trg[0] + 3]
             + all_coords[3 * trg[1] : 3 * trg[1] + 3]
-            + all_coords[3 * trg[2] : 3 * trg[1] + 3]
+            + all_coords[3 * trg[2] : 3 * trg[2] + 3]
         )
 
         faces.extend(
