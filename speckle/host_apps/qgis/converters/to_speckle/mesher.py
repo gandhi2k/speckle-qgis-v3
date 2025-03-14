@@ -7,88 +7,58 @@ from specklepy.objects.geometry.polyline import Polyline
 
 
 def generate_region_mesh(boundary: Polyline, inner_loops: List[Polyline], units: str):
+    """Generate Speckle Mesh for a planar shape represented by boundary and inner loops."""
 
-    max_points = 5000
-    coef = math.ceil(len(boundary.value) / max_points)
+    # Get a 'list of coordinate tuples' for boundary points
+    vertices3d_tuples: List[List[float]] = _flat_coords_to_tuples(boundary)
 
-    boundary_points_count = int(len(boundary.value) / 3)
-    vertices3d_tuples: List[List[float]] = [
-        [
-            boundary.value[i * coef * 3],
-            boundary.value[i * coef * 3 + 1],
-            boundary.value[i * coef * 3 + 2],
-        ]
-        for i, _ in enumerate(boundary.value)
-        if i * coef < boundary_points_count
-    ]
-
-    # inner loops
-    loops3d_tuples: List[List[List[float]]] = []
+    # Get a list of 'lists of coordinate tuples' for inner loops
+    loops3d_tuples_list: List[List[List[float]]] = []
     for loop in inner_loops:
-        loop_points_count = int(len(loop.value) / 3)
-        coef_loop = math.ceil(len(boundary.value) / max_points)
-
-        vertices3d_loop_tuples = [
-            [
-                loop.value[i * coef_loop * 3],
-                loop.value[i * coef_loop * 3 + 1],
-                loop.value[i * coef_loop * 3 + 2],
-            ]
-            for i, _ in enumerate(loop.value)
-            if i * coef_loop < loop_points_count
-        ]
-
-        loops3d_tuples.append(vertices3d_loop_tuples)
+        vertices3d_loop_tuples = _flat_coords_to_tuples(loop)
+        loops3d_tuples_list.append(vertices3d_loop_tuples)
 
     # triangulate region
-    triangles: List[List[int]] = _get_triangles(vertices3d_tuples, loops3d_tuples)
-
-    # if triangulated:
-    total_vertices = 0
-    vertices = []
-    faces = []
-
-    for trg in triangles:
-        # TODO: make sure all faces are clockwise (facing down)
-
-        vertices.extend(
-            vertices3d_tuples[trg[0]]
-            + vertices3d_tuples[trg[1]]
-            + vertices3d_tuples[trg[2]]
-        )
-
-        faces.extend(
-            [
-                3,
-                total_vertices + 1,
-                total_vertices + 2,
-                total_vertices + 3,
-            ]
-        )
-        total_vertices += 3
-
-    return Mesh(vertices=vertices, faces=faces, units=units)
-
-
-def _get_triangles(vertices3d_tuples, loops3d_tuples):
-
-    # iterate through each loop (list of coordinate tuples)
-    loop_indices = []
-    for loop_tuple_list in loops3d_tuples:
-
-        # current count of vertices will be the start index of the new loop
-        current_count = len(vertices3d_tuples)
-        loop_indices.append(current_count)
-        vertices3d_tuples.extend(loop_tuple_list)
-
-    if len(loop_indices) == 0:
-        loop_indices = None
-
-    vertices_flat_coords = [item for sub_list in vertices3d_tuples for item in sub_list]
-
-    triangles_flat_list = earcut.earcut.earcut(
-        vertices_flat_coords, loop_indices, dim=3
+    all_coords, triangles = _get_all_coords_and_triangles(
+        vertices3d_tuples, loops3d_tuples_list
     )
+
+    # construct mesh
+    mesh: Mesh = _construct_mesh_from_triangles(all_coords, triangles, units)
+
+    return mesh
+
+
+def _flat_coords_to_tuples(polyline: Polyline):
+    """Reduce resolution of the given polyline (if vertices exceed max amount),
+    and return the list of vertices' coordinate tuples."""
+
+    max_points = 1000
+    coef = math.ceil(len(polyline.value) / (3 * max_points))
+
+    # Get a list of coordinate tuples for polyline points
+    points_count = int(len(polyline.value) / 3)
+    coordinates_tuples: List[List[float]] = [
+        (
+            polyline.value[i * coef * 3],
+            polyline.value[i * coef * 3 + 1],
+            polyline.value[i * coef * 3 + 2],
+        )
+        for i, _ in enumerate(polyline.value)
+        if i * coef < points_count
+    ]
+    return coordinates_tuples
+
+
+def _get_all_coords_and_triangles(
+    vertices3d_tuples: List[List[float]], loops3d_tuples: List[List[List[float]]]
+):
+    """Triangulate the shape given tuple lists of boundary and loops' coordinates.
+    Return full flat list of triangulated vertices and list of triangle tuples."""
+
+    data = earcut.earcut.flatten([vertices3d_tuples] + loops3d_tuples)
+    triangles_flat_list = earcut.earcut.earcut(data["vertices"], data["holes"], dim=3)
+
     triangle_tuples = [
         [
             triangles_flat_list[3 * i],
@@ -99,4 +69,34 @@ def _get_triangles(vertices3d_tuples, loops3d_tuples):
         if i < len(triangles_flat_list) / 3
     ]
 
-    return triangle_tuples
+    return data["vertices"], triangle_tuples
+
+
+def _construct_mesh_from_triangles(all_coords, triangles, units) -> Mesh:
+    """Construct Speckle Mesh given a flat list of coordinates and a list of triangles
+    (defined by tuples with vertices' indices)."""
+
+    total_vertices = 0
+    vertices = []
+    faces = []
+
+    for trg in triangles:
+
+        # make sure all faces are clockwise (facing down). Seems earcut already returns clockwise faces
+        vertices.extend(
+            all_coords[3 * trg[0] : 3 * trg[0] + 3]
+            + all_coords[3 * trg[1] : 3 * trg[1] + 3]
+            + all_coords[3 * trg[2] : 3 * trg[1] + 3]
+        )
+
+        faces.extend(
+            [
+                3,
+                total_vertices,
+                total_vertices + 1,
+                total_vertices + 2,
+            ]
+        )
+        total_vertices += 3
+
+    return Mesh(vertices=vertices, faces=faces, units=units)
