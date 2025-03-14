@@ -152,12 +152,16 @@ class PolygonToSpeckleConverter:
                         self._polyline_converter.convert(part.interiorRing(i))[0]
                     )
 
+                display_mesh: Mesh = generate_region_mesh(
+                    boundary, inner_loops, self._conversion_settings.speckle_units
+                )
+
                 all_regions.append(
                     Region(
                         boundary=boundary,
                         innerLoops=inner_loops,
                         hasHatchPattern=False,
-                        displayValue=[],
+                        displayValue=[display_mesh],
                         units=self._conversion_settings.speckle_units,
                     )
                 )
