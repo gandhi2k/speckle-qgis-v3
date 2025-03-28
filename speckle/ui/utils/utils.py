@@ -79,7 +79,7 @@ def get_models_from_client(
     project: Project,
     cursor=None,
     filter_keyword: Optional[str] = None,
-) -> ResourceCollection[Project]:
+) -> ResourceCollection[Model]:
 
     results = []
     if speckle_client is not None:
