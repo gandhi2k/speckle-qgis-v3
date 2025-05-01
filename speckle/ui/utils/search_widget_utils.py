@@ -29,6 +29,7 @@ class UiSearchUtils(QObject):
     cursor_projects: Any = None
     cursor_models: Any = None
     speckle_client: SpeckleClient = None
+    current_workspace: Optional[Workspace] = None
     batch_size: int = None
     add_selection_filter_signal = pyqtSignal(SenderModelCard)
     add_models_search_signal = pyqtSignal(Project)
@@ -146,11 +147,7 @@ class UiSearchUtils(QObject):
 
         for project in projects_batch:
 
-            role = (
-                "workspace admin access"
-                if project.role is None
-                else project.role.split(":")[-1]
-            )
+            role = "can edit" if project.role is None else project.role.split(":")[-1]
 
             # make sure to pass the actual project, not a reference to a variable
             project_content = [

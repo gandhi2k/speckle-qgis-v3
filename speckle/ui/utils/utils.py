@@ -9,6 +9,7 @@ from specklepy.core.api.inputs.model_inputs import CreateModelInput
 from specklepy.core.api.inputs.project_inputs import (
     ProjectCreateInput,
     ProjectModelsFilter,
+    WorkspaceProjectCreateInput,
 )
 from specklepy.core.api.inputs.user_inputs import UserProjectsFilter
 from specklepy.core.api.inputs.project_inputs import WorksaceProjectsFilter
@@ -108,9 +109,14 @@ def get_projects_from_client(
         item
         for item in results.items
         if (
-            item.role is None
+            (
+                item.role is None
+                and speckle_client.project.get_permissions(
+                    item.id
+                ).can_create_model.authorized
+            )
             or (isinstance(item.role, str) and not item.role.endswith("viewer"))
-        )  # "None" for admin access writes (if not explicitly invited)
+        )  # "None" for "implicit" owner or viewer roles (if not explicitly invited)
     ]
 
     return results
@@ -172,12 +178,25 @@ def create_new_project_query(
 
     result = None
     if speckle_client is not None:
-        # possible GraphQLException
-        result: Project = speckle_client.project.create(
-            input=ProjectCreateInput(
-                name=project_name, description=None, visibility=None
+
+        if workspace_id:
+            # possible GraphQLException
+            result: Project = speckle_client.project.create_in_workspace(
+                input=WorkspaceProjectCreateInput(
+                    name=project_name,
+                    description=None,
+                    visibility=None,
+                    workspaceId=workspace_id,
+                )
             )
-        )
+
+        else:
+            # possible GraphQLException
+            result: Project = speckle_client.project.create(
+                input=ProjectCreateInput(
+                    name=project_name, description=None, visibility=None
+                )
+            )
 
         if not isinstance(result, Project):
             # TODO: handle
