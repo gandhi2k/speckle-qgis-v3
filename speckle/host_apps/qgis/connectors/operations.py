@@ -19,7 +19,7 @@ from speckle.ui.models import SendInfo
 from specklepy.objects.base import Base
 
 # from specklepy.objects.data import QgisObject
-from specklepy.objects.geometry.mesh import Mesh
+from specklepy.objects.geometry import Mesh
 from specklepy.objects.models.collections.collection import Collection
 
 from qgis.core import QgsProject, QgsVectorLayer, QgsRasterLayer
@@ -186,6 +186,9 @@ class QgisRootObjectBuilder(IRootObjectBuilder):
             self.color_unpacker.process_vector_layer_color(
                 feature, get_speckle_app_id(feature, layer_app_id)
             )
+
+        # for 3d polygons: replace Regions with Meshes
+        self.layer_utils.confirm_features_type(converted_features)
 
         return converted_features
 

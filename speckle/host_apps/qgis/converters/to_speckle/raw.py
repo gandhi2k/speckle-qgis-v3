@@ -4,6 +4,7 @@ from speckle.host_apps.qgis.connectors.extensions import get_speckle_app_id
 from speckle.host_apps.qgis.converters.settings import QgisConversionSettings
 
 from speckle.host_apps.qgis.converters.to_speckle.mesher import generate_region_mesh
+from specklepy.objects.base import Base
 from specklepy.objects.geometry import Mesh, Point, Polyline, Region
 
 from qgis.core import (
@@ -123,7 +124,7 @@ class PolygonToSpeckleConverter:
         self._conversion_settings = conversion_settings
         self._polyline_converter = polyline_converter
 
-    def convert(self, target: QgsAbstractGeometry) -> List[Region]:
+    def convert(self, target: QgsAbstractGeometry) -> List[Base]:
 
         wkb_type = target.wkbType()
 
@@ -142,9 +143,13 @@ class PolygonToSpeckleConverter:
             or wkb_type == QgsWkbTypes.CurvePolygonZM
         ):
             all_regions = []
+            all_z_values = []
             for part in target.parts():
 
                 boundary = self._polyline_converter.convert(part.exteriorRing())[0]
+                all_z_values.extend(
+                    [x for i, x in enumerate(boundary.value) if (i + 1) % 3 == 0]
+                )
                 inner_loops = []
 
                 for i in range(part.numInteriorRings()):
@@ -155,17 +160,20 @@ class PolygonToSpeckleConverter:
                 display_mesh: Mesh = generate_region_mesh(
                     boundary, inner_loops, self._conversion_settings.speckle_units
                 )
-
-                all_regions.append(
-                    Region(
-                        boundary=boundary,
-                        innerLoops=inner_loops,
-                        hasHatchPattern=False,
-                        displayValue=[display_mesh],
-                        units=self._conversion_settings.speckle_units,
-                    )
+                new_region = Region(
+                    boundary=boundary,
+                    innerLoops=inner_loops,
+                    hasHatchPattern=False,
+                    displayValue=[display_mesh],
+                    units=self._conversion_settings.speckle_units,
                 )
+                # hacky way to indicate that all features in the dataset should be sent as Meshes instead of Regions
+                if len(list(set(all_z_values))) > 1:
+                    new_region["3d"] = True
 
+                all_regions.append(new_region)
+
+            # return list of Meshes, if not horizontal Polygon
             return all_regions
 
         raise ValueError(f"Geometry of type '{type(target)}' cannot be converted")
