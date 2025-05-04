@@ -38,6 +38,8 @@ class UiSearchUtils(QObject):
     new_model_widget_signal = pyqtSignal(str)
     change_account_and_projects_signal = pyqtSignal()
     refresh_models_signal = pyqtSignal()
+    open_add_new_account_widget_signal = pyqtSignal()
+    add_new_account_signal = pyqtSignal()
 
     clear_project_search_bar_signal = pyqtSignal()
     clear_model_search_bar_signal = pyqtSignal()
@@ -55,12 +57,8 @@ class UiSearchUtils(QObject):
         )
         self.batch_size = QUERY_BATCH_SIZE
 
-    def get_accounts_content(self):
+    def get_accounts_content(self) -> List[List[Any]]:
         accounts: List[Account] = get_accounts()
-        if len(accounts) == 0:  # TODO handle no local accounts
-            raise SpeckleException(
-                "Add accounts via Speckle Desktop Manager in order to start"
-            )
 
         content_list = [
             [
@@ -91,9 +89,10 @@ class UiSearchUtils(QObject):
     def create_new_model(self, project_id: str, model_name: str):
         create_new_model_query(self.speckle_client, project_id, model_name)
 
-    def get_new_projects_content(
-        self, clear_cursor=False, workspace_id: Optional[str] = None
-    ):
+    def get_new_projects_content(self, clear_cursor=False):
+        workspace_id: Optional[str] = (
+            self.current_workspace.id if self.current_workspace else None
+        )
 
         if clear_cursor:
             self.cursor_projects = None
@@ -106,6 +105,13 @@ class UiSearchUtils(QObject):
                 cursor=self.cursor_projects,
             )
         )
+
+        # filter out projects without workspace (if None)
+        if self.current_workspace is None:
+            projects_resource_collection.items = [
+                x for x in projects_resource_collection.items if x.workspace_id is None
+            ]
+
         self.cursor_projects = projects_resource_collection.cursor
         content_list: List[List] = (
             self._create_project_content_list_from_resource_collection(
@@ -115,9 +121,11 @@ class UiSearchUtils(QObject):
 
         return content_list
 
-    def get_new_projects_content_with_name_condition(
-        self, name_filter: str, workspace_id: Optional[str] = None
-    ):
+    def get_new_projects_content_with_name_condition(self, name_filter: str):
+
+        workspace_id: Optional[str] = (
+            self.current_workspace.id if self.current_workspace else None
+        )
 
         self.cursor_projects = None
 
@@ -129,6 +137,13 @@ class UiSearchUtils(QObject):
                 filter_keyword=name_filter,
             )
         )
+
+        # filter out projects without workspace (if None)
+        if self.current_workspace is None:
+            projects_resource_collection.items = [
+                x for x in projects_resource_collection.items if x.workspace_id is None
+            ]
+
         self.cursor_projects = projects_resource_collection.cursor
         content_list: List[List] = (
             self._create_project_content_list_from_resource_collection(

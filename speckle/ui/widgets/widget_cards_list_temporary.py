@@ -17,9 +17,9 @@ from speckle.ui.widgets.widget_card_from_list import CardInListWidget
 class CardsListTemporaryWidget(QWidget):
 
     background: BackgroundWidget = None
+    scroll_area: QtWidgets.QScrollArea = None
     cards_list_widget: QWidget = None  # needed here to resize child elements
     load_more_btn: QPushButton = None
-    scroll_area: QtWidgets.QScrollArea = None
 
     scroll_container: QWidget = None  # overall container, added after the label
 
@@ -29,9 +29,11 @@ class CardsListTemporaryWidget(QWidget):
         parent=None,
         label_text: str = "Label",
         cards_content_list: List[List],
+        init_load_more_btn: bool = True,
     ):
         super(CardsListTemporaryWidget, self).__init__(parent)
         self.parent: "SpeckleQGISv3Dialog" = parent
+        self.init_load_more_btn = init_load_more_btn
 
         # align with the parent widget size
         self.resize(
@@ -82,7 +84,7 @@ class CardsListTemporaryWidget(QWidget):
 
         return scroll_container
 
-    def _create_container(self):
+    def _create_container(self) -> QWidget:
 
         scroll_container = QWidget()
         scroll_container.setAttribute(QtCore.Qt.WA_StyledBackground, True)
@@ -114,8 +116,8 @@ class CardsListTemporaryWidget(QWidget):
         self.scroll_area.setAlignment(Qt.AlignHCenter)
 
         # create a widget inside scroll area
-        cards_list_widget = self._create_area_with_cards(cards_content_list)
-        self.scroll_area.setWidget(cards_list_widget)
+        self.cards_list_widget = self._create_area_with_cards(cards_content_list)
+        self.scroll_area.setWidget(self.cards_list_widget)
 
         return self.scroll_area
 
@@ -155,22 +157,21 @@ class CardsListTemporaryWidget(QWidget):
 
     def _create_area_with_cards(self, cards_content_list: List[List]) -> QWidget:
 
-        self.cards_list_widget = QWidget()
-        self.cards_list_widget.setStyleSheet(
-            "QWidget {" + f"{ZERO_MARGIN_PADDING}" + "}"
-        )
-        _ = QVBoxLayout(self.cards_list_widget)
+        cards_list_widget = QWidget()
+        cards_list_widget.setStyleSheet("QWidget {" + f"{ZERO_MARGIN_PADDING}" + "}")
+        _ = QVBoxLayout(cards_list_widget)
 
         # in case the input argument was missing or None, don't create any cards
         if isinstance(cards_content_list, list):
             for content in cards_content_list:
                 project_card = CardInListWidget(content)
-                self.cards_list_widget.layout().addWidget(project_card)
+                cards_list_widget.layout().addWidget(project_card)
 
-        self._create_load_more_btn()
-        self.cards_list_widget.layout().addWidget(self.load_more_btn)
+        if self.init_load_more_btn:
+            self._create_load_more_btn()
+            cards_list_widget.layout().addWidget(self.load_more_btn)
 
-        return self.cards_list_widget
+        return cards_list_widget
 
     def _add_more_cards(
         self, new_cards_content_list: list, keep_scroll_on_top=False, batch_size=1
@@ -188,6 +189,7 @@ class CardsListTemporaryWidget(QWidget):
         assigned_cards_list_widget = self._create_area_with_cards(existing_content)
 
         self.scroll_area.setWidget(assigned_cards_list_widget)
+        self.cards_list_widget = assigned_cards_list_widget
 
         # scroll down
         if not keep_scroll_on_top:
@@ -195,9 +197,8 @@ class CardsListTemporaryWidget(QWidget):
             vbar.setValue(vbar.maximum())
 
         # style LoadMore buttom
-        if len(new_cards_content_list) < batch_size:
+        if self.load_more_btn and len(new_cards_content_list) < batch_size:
             self._style_load_btn(active=False, text="No more items found")
-            return
 
     def _remove_all_cards(self):
         all_count = self.cards_list_widget.layout().count()
