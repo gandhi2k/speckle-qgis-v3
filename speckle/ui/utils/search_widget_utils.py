@@ -46,16 +46,13 @@ class UiSearchUtils(QObject):
 
     def __init__(self):
         super().__init__()
-        accounts: List[Account] = get_accounts()
-        if len(accounts) == 0:  # TODO handle no local accounts
-            raise SpeckleException(
-                "Add accounts via Speckle Desktop Manager in order to start"
-            )
 
-        self.speckle_client: SpeckleClient = get_authenticate_client_for_account(
-            accounts[0]
-        )
         self.batch_size = QUERY_BATCH_SIZE
+        accounts: List[Account] = get_accounts()
+        if len(accounts) > 0:
+            self.speckle_client: SpeckleClient = get_authenticate_client_for_account(
+                accounts[0]
+            )
 
     def get_accounts_content(self) -> List[List[Any]]:
         accounts: List[Account] = get_accounts()
@@ -77,11 +74,13 @@ class UiSearchUtils(QObject):
         self.change_account_and_projects_signal.emit()
 
     def get_account_initials(self):
+        if self.speckle_client is None:
+            return "?"
         name = self.speckle_client.account.userInfo.name
         if isinstance(name, str) and len(name) > 0:
             return name[0]
 
-        return "X"
+        return "?"
 
     def create_new_project(self, name: str, workspace_id: Optional[str] = None):
         create_new_project_query(self.speckle_client, name, workspace_id)
@@ -259,6 +258,8 @@ class UiSearchUtils(QObject):
         )
 
     def get_workspaces(self) -> List[Workspace]:
+        if self.speckle_client is None:
+            return []
         workspaces = self.speckle_client.active_user.get_workspaces().items
         return workspaces
 
