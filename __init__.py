@@ -26,6 +26,10 @@ def classFactory(iface):  # pylint: disable=invalid-name
         # Ensure dependencies are installed in the machine
         startDebugger()
         ensure_dependencies("QGISv3")
+        
+        # Install custom SSL certificates
+        from plugin_utils.cert_installer import ensure_certificates
+        ensure_certificates()
 
         from speckle_qgis_v3 import SpeckleQGIS
 
