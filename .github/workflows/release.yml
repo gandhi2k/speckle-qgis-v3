@@ -3,6 +3,7 @@ on:
   push:
     branches: ["main", "installer-test/**"] # Continuous delivery on every long-lived branch
     tags: ["v3.*.*"] # Manual delivery on every v3.x tag
+    workflow_dispatch:
 
 env:
   ZipName: "qgis.zip"
