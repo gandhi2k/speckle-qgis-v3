@@ -6,8 +6,8 @@
 name=Speckle_v3
 qgisMinimumVersion=3.34.6
 qgisMaximumVersion=3.43.0
-description=Speckle 2.0 Connector for QGIS
-version=3.0.0
+description=Speckle v3 Connector for QGIS
+version=3.0.2
 author=Speckle Systems
 email=connectors@speckle.systems
 
