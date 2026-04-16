@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 from importlib import import_module, invalidate_caches
-import pkg_resources
+from importlib.metadata import distributions
 from subprocess import run
 import shutil
 
@@ -148,13 +148,33 @@ def get_requirements_path() -> Path:
     return path
 
 
-def _dependencies_installed(requirements: str, path: str) -> bool:
-    for d in pkg_resources.find_distributions(path):
-        entry = f"{d.key}=={d.version}"
-        if entry in requirements:
-            requirements = requirements.replace(entry, "")
-    requirements = requirements.replace(" ", "").replace(";", "").replace(",", "")
-    if len(requirements) > 0:
+def _normalize_requirement_name(name: str) -> str:
+    return name.strip().lower().replace("-", "_")
+
+
+def _dependencies_installed(requirements_text: str, path: str) -> bool:
+    required_entries = []
+    for line in requirements_text.splitlines():
+        requirement = line.strip()
+        if not requirement or requirement.startswith("#"):
+            continue
+        if "==" not in requirement:
+            return False
+        package_name, version = requirement.split("==", 1)
+        required_entries.append((_normalize_requirement_name(package_name), version))
+
+    installed_distributions = {
+        _normalize_requirement_name(distribution.metadata.get("Name", distribution.name)): distribution.version
+        for distribution in distributions(path=[path])
+    }
+
+    missing_entries = [
+        f"{package_name}=={version}"
+        for package_name, version in required_entries
+        if installed_distributions.get(package_name) != version
+    ]
+
+    if missing_entries:
         return False
     print("Dependencies already installed")
     return True
@@ -164,7 +184,7 @@ def install_requirements(host_application: str) -> None:
     # set up addons/modules under the user
     # script path. Here we'll install the
     # dependencies
-    requirements = get_requirements_path().read_text().replace("\n", "")
+    requirements = get_requirements_path().read_text()
     path = str(connector_installation_path(host_application))
 
     print(f"Installing debugpy to {path}")
